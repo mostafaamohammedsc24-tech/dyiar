@@ -2,9 +2,9 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Action Blue (Reserved for primary CTA buttons & active interactive controls)
-val DiyarActionBlue = Color(0xFF2563EB)
-val DiyarActionBluePressed = Color(0xFF1D4ED8)
+// Primary Action Orange (Reserved for primary CTA buttons & active interactive controls)
+val DiyarActionBlue = Color(0xFFEA580C)
+val DiyarActionBluePressed = Color(0xFFC2410C)
 
 // Crisp Pure White Light Mode Palette
 val LightBackground = Color(0xFFF8FAFC)
@@ -26,12 +26,12 @@ val DarkOnSurfaceMuted = Color(0xFF94A3B8)
 
 // Semantic Accents (Badges, Landmarks, Statuses)
 val VerifiedEmerald = Color(0xFF10B981)
-val AmberGold = Color(0xFFF59E0B)
+val AmberGold = Color(0xFFFBBF24)
 val CoralAlert = Color(0xFFEF4444)
 val TealLandmark = Color(0xFF14B8A6)
 val RentViolet = Color(0xFF8B5CF6)
-val RestaurantOrange = Color(0xFFF97316)
+val RestaurantOrange = Color(0xFFF59E0B)
 
-// Backwards-compatible aliases kept minimal where map pins / icons need explicit hues
+// Backwards-compatible aliases mapped to Orange brand palette
 val DiyarRoyalBlue = DiyarActionBlue
-val DiyarSkyBlue = Color(0xFF60A5FA)
+val DiyarSkyBlue = Color(0xFFFB923C)

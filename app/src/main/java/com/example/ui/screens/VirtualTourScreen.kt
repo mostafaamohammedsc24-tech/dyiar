@@ -104,7 +104,7 @@ fun VirtualTourScreen(
                         if (roomHint != null) {
                             Text(
                                 text = "${roomHint.widthM}×${roomHint.lengthM}${strings.meterUnit} • ${if (strings.isArabic) roomHint.paintNameAr else roomHint.paintNameEn}",
-                                color = Color(0xFF93C5FD),
+                                color = Color(0xFFFDBA74),
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }

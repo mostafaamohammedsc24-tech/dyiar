@@ -207,8 +207,8 @@ fun DesignPrototypeSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 DesignTokenSwatch(
-                    name = if (strings.isArabic) "أزرق الأزرار" else "Action Blue",
-                    hex = "#2563EB",
+                    name = if (strings.isArabic) "برتقالي الشبكة" else "Action Orange",
+                    hex = "#EA580C",
                     color = DiyarActionBlue
                 )
                 DesignTokenSwatch(

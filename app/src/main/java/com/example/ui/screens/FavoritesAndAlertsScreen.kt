@@ -490,7 +490,7 @@ fun AlertsScreen(
                 Button(
                     onClick = {
                         val name = ruleName.trim().ifBlank {
-                            if (strings.isArabic) "تنبيه عقاراتي" else "Diyar Smart Alert"
+                            if (strings.isArabic) "تنبيه شبكة دلال العراق" else "Iraq Dallal Smart Alert"
                         }
                         viewModel.createAlertRule(
                             AlertRule(

@@ -106,8 +106,8 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                         .background(
                             Brush.horizontalGradient(
                                 listOf(
-                                    Color(0xD90B2545),
-                                    Color(0x660B2545)
+                                    Color(0xD91A120B),
+                                    Color(0x661A120B)
                                 )
                             )
                         )

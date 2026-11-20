@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Diyar"
+rootProject.name = "شبكة دلال العراق"
 
 include(":app")
