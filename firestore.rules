@@ -1,0 +1,376 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidProperty(data) {
+      return data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+             data.ownerDisplayName is string && data.ownerDisplayName.size() >= 1 && data.ownerDisplayName.size() <= 80 &&
+             data.titleEn is string && data.titleEn.size() >= 3 && data.titleEn.size() <= 140 &&
+             data.titleAr is string && data.titleAr.size() >= 3 && data.titleAr.size() <= 140 &&
+             data.descriptionEn is string && data.descriptionEn.size() >= 10 && data.descriptionEn.size() <= 2500 &&
+             data.descriptionAr is string && data.descriptionAr.size() >= 10 && data.descriptionAr.size() <= 2500 &&
+             data.listingType in ['SALE', 'RENT'] &&
+             data.propertyType in ['VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
+             data.status in ['ACTIVE', 'DRAFT', 'SOLD'] &&
+             data.verificationStatus in ['VERIFIED', 'PENDING'] &&
+             data.verified is bool &&
+             data.deedReference is string && data.deedReference.size() >= 3 && data.deedReference.size() <= 64 &&
+             data.price is number && data.price > 0 && data.price <= 20000000000 &&
+             data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 8 &&
+             data.areaSqm is number && data.areaSqm > 0 && data.areaSqm <= 1000000 &&
+             data.bedrooms is int && data.bedrooms >= 0 && data.bedrooms <= 30 &&
+             data.bathrooms is int && data.bathrooms >= 0 && data.bathrooms <= 30 &&
+             (!('yearBuilt' in data) || (data.yearBuilt is int && data.yearBuilt >= 1950 && data.yearBuilt <= 2030)) &&
+             (!('amenities' in data) || (data.amenities is list && data.amenities.size() <= 20)) &&
+             data.cityEn is string && data.cityEn.size() >= 1 && data.cityEn.size() <= 80 &&
+             data.cityAr is string && data.cityAr.size() >= 1 && data.cityAr.size() <= 80 &&
+             data.neighborhoodEn is string && data.neighborhoodEn.size() >= 1 && data.neighborhoodEn.size() <= 100 &&
+             data.neighborhoodAr is string && data.neighborhoodAr.size() >= 1 && data.neighborhoodAr.size() <= 100 &&
+             data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+             data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+             data.hasVirtualTour is bool &&
+             data.hasFloorPlan is bool &&
+             data.heroPresetKey is string && data.heroPresetKey.size() >= 1 && data.heroPresetKey.size() <= 64 &&
+             data.ceilingHeightM is number && data.ceilingHeightM > 0 && data.ceilingHeightM <= 20 &&
+             data.floorPlanWidthM is number && data.floorPlanWidthM > 0 && data.floorPlanWidthM <= 200 &&
+             data.floorPlanLengthM is number && data.floorPlanLengthM > 0 && data.floorPlanLengthM <= 200 &&
+             data.rooms is list && data.rooms.size() <= 20 && (data.rooms.size() == 0 || data.rooms[0] is map) &&
+             data.tourScenes is list && data.tourScenes.size() <= 15 && (data.tourScenes.size() == 0 || data.tourScenes[0] is map) &&
+             data.nearbyLandmarks is list && data.nearbyLandmarks.size() <= 20 && (data.nearbyLandmarks.size() == 0 || data.nearbyLandmarks[0] is map) &&
+             (!('galleryImages' in data) || (data.galleryImages is list && data.galleryImages.size() <= 20)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.preferredLanguage in ['en', 'ar'] &&
+             data.verifiedPublisher is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPrivateVerification(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.propertyId is string && data.propertyId.size() >= 1 && data.propertyId.size() <= 128 &&
+             data.fullDeedNumber is string && data.fullDeedNumber.size() >= 3 && data.fullDeedNumber.size() <= 64 &&
+             data.licenseNumber is string && data.licenseNumber.size() >= 3 && data.licenseNumber.size() <= 64 &&
+             data.contactPhone is string && data.contactPhone.size() >= 5 && data.contactPhone.size() <= 30 &&
+             data.verificationLevel in ['VERIFIED', 'PENDING'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidFavorite(data) {
+      return data.propertyId is string && data.propertyId.size() >= 1 && data.propertyId.size() <= 128 &&
+             data.titleEn is string && data.titleEn.size() >= 1 && data.titleEn.size() <= 140 &&
+             data.titleAr is string && data.titleAr.size() >= 1 && data.titleAr.size() <= 140 &&
+             data.price is number && data.price > 0 && data.price <= 20000000000 &&
+             (!('status' in data) || data.status in ['ACTIVE', 'DRAFT', 'SOLD']) &&
+             data.cityEn is string && data.cityEn.size() >= 1 && data.cityEn.size() <= 80 &&
+             data.cityAr is string && data.cityAr.size() >= 1 && data.cityAr.size() <= 80 &&
+             data.listingType in ['SALE', 'RENT'] &&
+             data.propertyType in ['VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
+             data.heroPresetKey is string && data.heroPresetKey.size() >= 1 && data.heroPresetKey.size() <= 64 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidAlertRule(data) {
+      return data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100 &&
+             data.nameAr is string && data.nameAr.size() >= 1 && data.nameAr.size() <= 100 &&
+             data.listingType in ['ALL', 'SALE', 'RENT'] &&
+             data.propertyType in ['ALL', 'VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
+             data.maxPrice is number && data.maxPrice >= 0 && data.maxPrice <= 20000000000 &&
+             data.minAreaSqm is number && data.minAreaSqm >= 0 && data.minAreaSqm <= 1000000 &&
+             data.cityFilter is string && data.cityFilter.size() <= 80 &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAlert(data) {
+      return data.propertyId is string && data.propertyId.size() >= 1 && data.propertyId.size() <= 128 &&
+             data.ruleId is string && data.ruleId.size() >= 1 && data.ruleId.size() <= 128 &&
+             data.titleEn is string && data.titleEn.size() >= 1 && data.titleEn.size() <= 140 &&
+             data.titleAr is string && data.titleAr.size() >= 1 && data.titleAr.size() <= 140 &&
+             data.messageEn is string && data.messageEn.size() >= 1 && data.messageEn.size() <= 300 &&
+             data.messageAr is string && data.messageAr.size() >= 1 && data.messageAr.size() <= 300 &&
+             data.price is number && data.price >= 0 && data.price <= 20000000000 &&
+             data.read is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidServiceRequest(data) {
+      return data.serviceCategory in ['STAGING', 'MAINTENANCE', 'REPAIR', 'MOVING'] &&
+             data.packageTitleEn is string && data.packageTitleEn.size() >= 1 && data.packageTitleEn.size() <= 120 &&
+             data.packageTitleAr is string && data.packageTitleAr.size() >= 1 && data.packageTitleAr.size() <= 120 &&
+             data.propertyTitle is string && data.propertyTitle.size() >= 1 && data.propertyTitle.size() <= 140 &&
+             data.address is string && data.address.size() >= 3 && data.address.size() <= 200 &&
+             data.scheduledDate is string && data.scheduledDate.size() >= 1 && data.scheduledDate.size() <= 40 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+             data.estimatedPrice is number && data.estimatedPrice > 0 && data.estimatedPrice <= 500000000 &&
+             data.status in ['REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 1. Shared Properties Marketplace
+    match /properties/{propertyId} {
+      allow get: if isSignedIn() && isValidId(propertyId) &&
+                    (resource == null || existing().status == 'ACTIVE' || existing().ownerId == request.auth.uid);
+      allow list: if isSignedIn() &&
+                     (existing().status == 'ACTIVE' || existing().ownerId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(propertyId) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'ownerId', 'ownerDisplayName', 'titleEn', 'titleAr',
+                         'descriptionEn', 'descriptionAr', 'listingType', 'propertyType',
+                         'status', 'verificationStatus', 'verified', 'deedReference',
+                         'price', 'currency', 'areaSqm', 'bedrooms', 'bathrooms',
+                         'cityEn', 'cityAr', 'neighborhoodEn', 'neighborhoodAr',
+                         'latitude', 'longitude', 'hasVirtualTour', 'hasFloorPlan',
+                         'heroPresetKey', 'ceilingHeightM', 'floorPlanWidthM', 'floorPlanLengthM',
+                         'rooms', 'tourScenes', 'nearbyLandmarks', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'ownerId', 'ownerDisplayName', 'titleEn', 'titleAr',
+                         'descriptionEn', 'descriptionAr', 'listingType', 'propertyType',
+                         'status', 'verificationStatus', 'verified', 'deedReference',
+                         'price', 'currency', 'areaSqm', 'bedrooms', 'bathrooms',
+                         'yearBuilt', 'amenities',
+                         'cityEn', 'cityAr', 'neighborhoodEn', 'neighborhoodAr',
+                         'latitude', 'longitude', 'hasVirtualTour', 'hasFloorPlan',
+                         'heroPresetKey', 'ceilingHeightM', 'floorPlanWidthM', 'floorPlanLengthM',
+                         'rooms', 'tourScenes', 'nearbyLandmarks', 'galleryImages', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidProperty(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(propertyId) &&
+                       existing().ownerId == request.auth.uid &&
+                       existing().status != 'SOLD' &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidProperty(incoming()) &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'titleEn', 'titleAr', 'descriptionEn', 'descriptionAr',
+                           'price', 'status', 'yearBuilt', 'amenities',
+                           'rooms', 'tourScenes', 'nearbyLandmarks', 'galleryImages',
+                           'hasVirtualTour', 'hasFloorPlan', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isSignedIn() && isValidId(propertyId) && existing().ownerId == request.auth.uid;
+    }
+
+    // 2. User Profile & Subcollections
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'preferredLanguage',
+                         'verifiedPublisher', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'photoUrl', 'preferredLanguage',
+                         'verifiedPublisher', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'photoUrl', 'preferredLanguage',
+                         'verifiedPublisher', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /private_verifications/{propertyId} {
+        allow get: if isOwner(userId) && isValidId(propertyId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(propertyId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().propertyId == propertyId &&
+                         incoming().keys().hasAll([
+                           'userId', 'propertyId', 'fullDeedNumber', 'licenseNumber',
+                           'contactPhone', 'verificationLevel', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'propertyId', 'fullDeedNumber', 'licenseNumber',
+                           'contactPhone', 'verificationLevel', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPrivateVerification(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(propertyId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().propertyId == existing().propertyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidPrivateVerification(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'fullDeedNumber', 'licenseNumber', 'contactPhone',
+                           'verificationLevel', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(propertyId);
+      }
+
+      match /favorites/{propertyId} {
+        allow get: if isOwner(userId) && isValidId(propertyId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(propertyId) &&
+                         incoming().propertyId == propertyId &&
+                         incoming().keys().hasAll([
+                           'propertyId', 'titleEn', 'titleAr', 'price',
+                           'cityEn', 'cityAr', 'listingType', 'propertyType',
+                           'heroPresetKey', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'propertyId', 'titleEn', 'titleAr', 'price', 'status',
+                           'cityEn', 'cityAr', 'listingType', 'propertyType',
+                           'heroPresetKey', 'createdAt'
+                         ]) &&
+                         isValidFavorite(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(propertyId) &&
+                         incoming().propertyId == existing().propertyId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidFavorite(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'price', 'status', 'titleEn', 'titleAr'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(propertyId);
+      }
+
+      match /alert_rules/{ruleId} {
+        allow get: if isOwner(userId) && isValidId(ruleId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(ruleId) &&
+                         incoming().keys().hasAll([
+                           'nameEn', 'nameAr', 'listingType', 'propertyType',
+                           'maxPrice', 'minAreaSqm', 'cityFilter', 'active',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'nameEn', 'nameAr', 'listingType', 'propertyType',
+                           'maxPrice', 'minAreaSqm', 'cityFilter', 'active',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidAlertRule(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(ruleId) &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidAlertRule(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'nameEn', 'nameAr', 'listingType', 'propertyType',
+                           'maxPrice', 'minAreaSqm', 'cityFilter', 'active', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(ruleId);
+      }
+
+      match /alerts/{alertId} {
+        allow get: if isOwner(userId) && isValidId(alertId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(alertId) &&
+                         incoming().keys().hasAll([
+                           'propertyId', 'ruleId', 'titleEn', 'titleAr',
+                           'messageEn', 'messageAr', 'price', 'read', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'propertyId', 'ruleId', 'titleEn', 'titleAr',
+                           'messageEn', 'messageAr', 'price', 'read', 'createdAt'
+                         ]) &&
+                         isValidAlert(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(alertId) &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidAlert(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+
+        allow delete: if isOwner(userId) && isValidId(alertId);
+      }
+
+      match /service_requests/{requestId} {
+        allow get: if isOwner(userId) && isValidId(requestId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(requestId) &&
+                         incoming().keys().hasAll([
+                           'serviceCategory', 'packageTitleEn', 'packageTitleAr',
+                           'propertyTitle', 'address', 'scheduledDate',
+                           'estimatedPrice', 'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'serviceCategory', 'packageTitleEn', 'packageTitleAr',
+                           'propertyTitle', 'address', 'scheduledDate', 'notes',
+                           'estimatedPrice', 'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidServiceRequest(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(requestId) &&
+                         existing().status != 'COMPLETED' &&
+                         existing().status != 'CANCELLED' &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidServiceRequest(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'status', 'scheduledDate', 'notes', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(requestId);
+      }
+    }
+  }
+}

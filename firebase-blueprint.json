@@ -1,0 +1,189 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "Real estate listing with bilingual report details, architectural floor plan specs, 360 tour scenes, amenities, yearBuilt, and nearby landmarks.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Firebase Auth UID of the publisher." },
+        "ownerDisplayName": { "type": "string", "description": "Public display name of the publisher or agency." },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "descriptionEn": { "type": "string" },
+        "descriptionAr": { "type": "string" },
+        "listingType": { "type": "string", "enum": ["SALE", "RENT"] },
+        "propertyType": { "type": "string", "enum": ["VILLA", "APARTMENT", "PENTHOUSE", "TOWNHOUSE", "LAND"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "DRAFT", "SOLD"] },
+        "verificationStatus": { "type": "string", "enum": ["VERIFIED", "PENDING"] },
+        "verified": { "type": "boolean" },
+        "deedReference": { "type": "string", "description": "Masked public verification reference." },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "areaSqm": { "type": "number" },
+        "bedrooms": { "type": "integer" },
+        "bathrooms": { "type": "integer" },
+        "yearBuilt": { "type": "integer", "description": "Construction year of the property." },
+        "amenities": { "type": "array", "description": "Property amenities such as POOL, GARDEN, ELEVATOR, SMART_HOME, PARKING." },
+        "cityEn": { "type": "string" },
+        "cityAr": { "type": "string" },
+        "neighborhoodEn": { "type": "string" },
+        "neighborhoodAr": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "hasVirtualTour": { "type": "boolean" },
+        "hasFloorPlan": { "type": "boolean" },
+        "heroPresetKey": { "type": "string" },
+        "ceilingHeightM": { "type": "number" },
+        "floorPlanWidthM": { "type": "number" },
+        "floorPlanLengthM": { "type": "number" },
+        "rooms": { "type": "array", "description": "Architectural room specs with dimensions and paint swatches." },
+        "tourScenes": { "type": "array", "description": "360-degree virtual tour scenes and room angles." },
+        "nearbyLandmarks": { "type": "array", "description": "Nearby schools, mosques, hospitals, restaurants, streets, and services." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Client submits FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Client submits FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "ownerId", "ownerDisplayName", "titleEn", "titleAr", "descriptionEn", "descriptionAr",
+        "listingType", "propertyType", "status", "verificationStatus", "verified", "deedReference",
+        "price", "currency", "areaSqm", "bedrooms", "bathrooms", "cityEn", "cityAr",
+        "neighborhoodEn", "neighborhoodAr", "latitude", "longitude", "hasVirtualTour", "hasFloorPlan",
+        "heroPresetKey", "ceilingHeightM", "floorPlanWidthM", "floorPlanLengthM",
+        "rooms", "tourScenes", "nearbyLandmarks", "createdAt", "updatedAt"
+      ]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and language preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "preferredLanguage": { "type": "string", "enum": ["en", "ar"] },
+        "verifiedPublisher": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "preferredLanguage", "verifiedPublisher", "createdAt", "updatedAt"]
+    },
+    "PrivateVerification": {
+      "title": "PrivateVerification",
+      "description": "Isolated publisher PII and deed verification documents.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "fullDeedNumber": { "type": "string" },
+        "licenseNumber": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "verificationLevel": { "type": "string", "enum": ["VERIFIED", "PENDING"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "propertyId", "fullDeedNumber", "licenseNumber", "contactPhone", "verificationLevel", "createdAt", "updatedAt"]
+    },
+    "FavoriteProperty": {
+      "title": "FavoriteProperty",
+      "description": "User saved favorite real estate listing reference with last seen price and status.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "DRAFT", "SOLD"] },
+        "cityEn": { "type": "string" },
+        "cityAr": { "type": "string" },
+        "listingType": { "type": "string" },
+        "propertyType": { "type": "string" },
+        "heroPresetKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "titleEn", "titleAr", "price", "cityEn", "cityAr", "listingType", "propertyType", "heroPresetKey", "createdAt"]
+    },
+    "AlertRule": {
+      "title": "AlertRule",
+      "description": "Saved search criteria for instant real-time property alerts.",
+      "type": "object",
+      "properties": {
+        "nameEn": { "type": "string" },
+        "nameAr": { "type": "string" },
+        "listingType": { "type": "string", "enum": ["ALL", "SALE", "RENT"] },
+        "propertyType": { "type": "string", "enum": ["ALL", "VILLA", "APARTMENT", "PENTHOUSE", "TOWNHOUSE", "LAND"] },
+        "maxPrice": { "type": "number" },
+        "minAreaSqm": { "type": "number" },
+        "cityFilter": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nameEn", "nameAr", "listingType", "propertyType", "maxPrice", "minAreaSqm", "cityFilter", "active", "createdAt", "updatedAt"]
+    },
+    "PropertyAlert": {
+      "title": "PropertyAlert",
+      "description": "Real-time notification triggered when a property matches an alert rule or a favorited property updates.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "ruleId": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "messageEn": { "type": "string" },
+        "messageAr": { "type": "string" },
+        "price": { "type": "number" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "ruleId", "titleEn", "titleAr", "messageEn", "messageAr", "price", "read", "createdAt"]
+    },
+    "ServiceRequest": {
+      "title": "ServiceRequest",
+      "description": "Booked home service request such as staging, maintenance, repair, or moving.",
+      "type": "object",
+      "properties": {
+        "serviceCategory": { "type": "string", "enum": ["STAGING", "MAINTENANCE", "REPAIR", "MOVING"] },
+        "packageTitleEn": { "type": "string" },
+        "packageTitleAr": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "address": { "type": "string" },
+        "scheduledDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "estimatedPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["REQUESTED", "CONFIRMED", "COMPLETED", "CANCELLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["serviceCategory", "packageTitleEn", "packageTitleAr", "propertyTitle", "address", "scheduledDate", "estimatedPrice", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": { "$ref": "#/entities/Property" },
+      "description": "Shared real estate listings browsable when ACTIVE or owned by current user."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and language preferences."
+    },
+    "/users/{userId}/private_verifications/{propertyId}": {
+      "schema": { "$ref": "#/entities/PrivateVerification" },
+      "description": "Private deed/license/phone PII for property verification."
+    },
+    "/users/{userId}/favorites/{propertyId}": {
+      "schema": { "$ref": "#/entities/FavoriteProperty" },
+      "description": "Saved favorite properties per user."
+    },
+    "/users/{userId}/alert_rules/{ruleId}": {
+      "schema": { "$ref": "#/entities/AlertRule" },
+      "description": "Saved search watch alert rules per user."
+    },
+    "/users/{userId}/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/PropertyAlert" },
+      "description": "Real-time property match alert notifications per user."
+    },
+    "/users/{userId}/service_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/ServiceRequest" },
+      "description": "Home staging, maintenance, repair, and moving bookings per user."
+    }
+  }
+}

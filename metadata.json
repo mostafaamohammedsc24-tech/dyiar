@@ -1,0 +1,6 @@
+{
+  "name": "Diyar",
+  "description": "Bilingual Arabic and English real estate discovery platform with interactive Google Maps, 360 virtual tours, architectural floor plans, verified listings, home services, and real-time Firebase alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
