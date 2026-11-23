@@ -281,6 +281,12 @@ fun EditableMultiImageCarousel(
     val pagerState = rememberPagerState(pageCount = { images.size.coerceAtLeast(1) })
     val scope = rememberCoroutineScope()
 
+    androidx.compose.runtime.LaunchedEffect(images.size) {
+        if (images.isNotEmpty() && pagerState.currentPage >= images.size) {
+            pagerState.scrollToPage(images.lastIndex)
+        }
+    }
+
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -328,7 +334,7 @@ fun EditableMultiImageCarousel(
                             .fillMaxSize()
                             .testTag("publish_images_carousel_pager")
                     ) { page ->
-                        val token = images[page]
+                        val token = images.getOrNull(page) ?: return@HorizontalPager
                         Box(modifier = Modifier.fillMaxSize()) {
                             CarouselMediaImage(
                                 mediaToken = token,

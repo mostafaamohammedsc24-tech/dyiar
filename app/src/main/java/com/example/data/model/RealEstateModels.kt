@@ -18,7 +18,12 @@ data class RoomSpec(
     val paintNameAr: String = "أبيض ألاباستر دافئ",
     val paintHex: String = "#F4F1EA",
     val flooringEn: String = "Porcelain Tile",
-    val flooringAr: String = "بورسلان إيطالي"
+    val flooringAr: String = "بورسلان إيطالي",
+    val floor: Int = 1,
+    val xNorm: Double = -1.0,
+    val yNorm: Double = -1.0,
+    val wNorm: Double = 0.0,
+    val hNorm: Double = 0.0
 ) {
     fun areaSqm(): Double = widthM * lengthM
 
@@ -32,7 +37,12 @@ data class RoomSpec(
         "paintNameAr" to paintNameAr,
         "paintHex" to paintHex,
         "flooringEn" to flooringEn,
-        "flooringAr" to flooringAr
+        "flooringAr" to flooringAr,
+        "floor" to floor,
+        "xNorm" to xNorm,
+        "yNorm" to yNorm,
+        "wNorm" to wNorm,
+        "hNorm" to hNorm
     )
 }
 
@@ -88,8 +98,8 @@ data class PropertyListing(
     val titleAr: String = "",
     val descriptionEn: String = "",
     val descriptionAr: String = "",
-    val listingType: String = "SALE", // SALE, RENT
-    val propertyType: String = "VILLA", // VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, LAND
+    val listingType: String = "SALE", // SALE, RENT, MORTGAGE
+    val propertyType: String = "VILLA", // VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, COMMERCIAL, LAND
     val status: String = "ACTIVE", // ACTIVE, DRAFT, SOLD
     val verificationStatus: String = "VERIFIED", // VERIFIED, PENDING
     val verified: Boolean = true,
@@ -144,8 +154,8 @@ data class AlertRule(
     @DocumentId val id: String = "",
     val nameEn: String = "",
     val nameAr: String = "",
-    val listingType: String = "ALL", // ALL, SALE, RENT
-    val propertyType: String = "ALL", // ALL, VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, LAND
+    val listingType: String = "ALL", // ALL, SALE, RENT, MORTGAGE
+    val propertyType: String = "ALL", // ALL, VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, COMMERCIAL, LAND
     val maxPrice: Double = 0.0,
     val minAreaSqm: Double = 0.0,
     val cityFilter: String = "",
@@ -216,7 +226,8 @@ enum class SearchSuggestionSource {
     GEOCODER,
     IRAQ_DISTRICT,
     LANDMARK,
-    PROPERTY
+    PROPERTY,
+    CATEGORY_FILTER
 }
 
 data class SmartSearchSuggestion(
@@ -225,7 +236,7 @@ data class SmartSearchSuggestion(
     val primaryTextAr: String,
     val secondaryTextEn: String,
     val secondaryTextAr: String,
-    val category: String, // CITY, DISTRICT, HOSPITAL, SCHOOL, RESTAURANT, MOSQUE, STREET, PROPERTY, SERVICE
+    val category: String, // CITY, DISTRICT, HOSPITAL, SCHOOL, RESTAURANT, MOSQUE, STREET, PROPERTY, SERVICE, CATEGORY
     val source: SearchSuggestionSource,
     val placeId: String? = null,
     val propertyId: String? = null,
@@ -236,8 +247,8 @@ data class SmartSearchSuggestion(
 
 data class PropertyFilter(
     val query: String = "",
-    val listingType: String = "ALL", // ALL, SALE, RENT
-    val propertyType: String = "ALL", // ALL, VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, LAND
+    val listingType: String = "ALL", // ALL, SALE, RENT, MORTGAGE
+    val propertyType: String = "ALL", // ALL, VILLA, APARTMENT, PENTHOUSE, TOWNHOUSE, COMMERCIAL, LAND
     val minPrice: Double = 0.0,
     val maxPrice: Double = 2_000_000_000.0,
     val minAreaSqm: Double = 0.0,

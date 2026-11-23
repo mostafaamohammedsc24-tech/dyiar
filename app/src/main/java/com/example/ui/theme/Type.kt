@@ -28,74 +28,74 @@ fun diyarTypography(isArabic: Boolean): Typography {
         displaySmall = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 32.sp,
-            lineHeight = 40.sp
+            fontSize = 24.sp,
+            lineHeight = 32.sp
         ),
         headlineMedium = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            lineHeight = 32.sp
+            fontSize = 20.sp,
+            lineHeight = 28.sp
         ),
         headlineSmall = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 20.sp,
-            lineHeight = 28.sp
+            fontSize = 17.sp,
+            lineHeight = 24.sp
         ),
         titleLarge = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            lineHeight = 26.sp
+            fontSize = 16.sp,
+            lineHeight = 22.sp
         ),
         titleMedium = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            lineHeight = 24.sp
+            fontSize = 14.sp,
+            lineHeight = 20.sp
         ),
         titleSmall = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
+            fontSize = 13.sp,
+            lineHeight = 18.sp
         ),
         bodyLarge = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 15.sp,
-            lineHeight = 23.sp
+            fontSize = 14.sp,
+            lineHeight = 20.sp
         ),
         bodyMedium = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 13.sp,
-            lineHeight = 20.sp
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp
         ),
         bodySmall = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            lineHeight = 16.sp
+            fontSize = 11.sp,
+            lineHeight = 15.sp
         ),
         labelLarge = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-            lineHeight = 18.sp
+            fontSize = 12.sp,
+            lineHeight = 16.sp
         ),
         labelMedium = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 14.sp
         ),
         labelSmall = TextStyle(
             fontFamily = activeFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
-            lineHeight = 14.sp
+            lineHeight = 13.sp
         )
     )
 }

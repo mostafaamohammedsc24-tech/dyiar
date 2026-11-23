@@ -51,6 +51,7 @@ import com.example.ui.theme.VerifiedEmerald
 @Composable
 fun DesignPrototypeSheet(
     activeCategory: MapRailCategory?,
+    mortgageCount: Int = 0,
     saleCount: Int,
     rentCount: Int,
     commercialCount: Int,
@@ -141,6 +142,7 @@ fun DesignPrototypeSheet(
                     // Interactive Rail Preview synced with live Map Screen
                     VerticalMapCategorySelector(
                         activeCategory = activeCategory,
+                        mortgageCount = mortgageCount,
                         saleCount = saleCount,
                         rentCount = rentCount,
                         commercialCount = commercialCount,
@@ -163,11 +165,18 @@ fun DesignPrototypeSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // Live Marker Tokens Preview (Sale / Rent / Commercial)
+                        // Live Marker Tokens Preview (Mortgage / Sale / Rent / Commercial)
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            PricePinBadge(
+                                priceText = if (strings.isArabic) "180 م" else "180M",
+                                listingType = "MORTGAGE",
+                                propertyType = "APARTMENT",
+                                selected = activeCategory == MapRailCategory.MORTGAGE,
+                                verified = true
+                            )
                             PricePinBadge(
                                 priceText = if (strings.isArabic) "950 م" else "950M",
                                 listingType = "SALE",

@@ -25,6 +25,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,11 +72,41 @@ class DiyarViewModel(
     private val _mapFocusTarget = MutableStateFlow<Pair<Double, Double>?>(null)
     val mapFocusTarget: StateFlow<Pair<Double, Double>?> = _mapFocusTarget.asStateFlow()
 
+    private val _currentMapZoom = MutableStateFlow(11.4f)
+    val isMapZoomedForPois: StateFlow<Boolean> = _currentMapZoom
+        .map { it >= POI_ZOOM_THRESHOLD }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            initialValue = false
+        )
+
+    private val _requestedMapZoom = MutableStateFlow<Float?>(null)
+    val requestedMapZoom: StateFlow<Float?> = _requestedMapZoom.asStateFlow()
+
+    private val _cameraCenter = MutableStateFlow(33.3152 to 44.3661)
+    private val _nearbyGooglePois = MutableStateFlow<List<MapPointOfInterest>>(emptyList())
+    private var lastFetchedLat: Double? = null
+    private var lastFetchedLng: Double? = null
+    private var lastFetchedCategory: String? = null
+    private var poiFetchJob: Job? = null
+
     private val _liveSearchText = MutableStateFlow("")
     private val _searchSuggestionsArabic = MutableStateFlow(true)
     private val _remotePlaceSuggestions = MutableStateFlow<List<SmartSearchSuggestion>>(emptyList())
     private val _isSearchingSuggestions = MutableStateFlow(false)
     val isSearchingSuggestions: StateFlow<Boolean> = _isSearchingSuggestions.asStateFlow()
+
+    private val _openMyListingsRequest = MutableStateFlow(false)
+    val openMyListingsRequest: StateFlow<Boolean> = _openMyListingsRequest.asStateFlow()
+
+    fun requestOpenMyListingsTab() {
+        _openMyListingsRequest.value = true
+    }
+
+    fun consumeOpenMyListingsRequest() {
+        _openMyListingsRequest.value = false
+    }
 
     val activePropertiesState: StateFlow<UiState<List<PropertyListing>>> =
         repository.observeActiveProperties()
@@ -101,33 +132,38 @@ class DiyarViewModel(
         )
 
     val mapPointsOfInterest: StateFlow<List<MapPointOfInterest>> =
-        combine(activePropertiesState, _activePoiCategory, _searchedPlaceMarker) { propsState, poiCat, searchedMarker ->
-            val fromListings = (propsState as? UiState.Success)?.data.orEmpty().flatMap { prop ->
-                prop.nearbyLandmarks.mapIndexed { idx, lm ->
-                    MapPointOfInterest(
-                        id = "${prop.id}_lm_$idx",
-                        category = lm.category,
-                        nameEn = lm.nameEn,
-                        nameAr = lm.nameAr,
-                        subtitleEn = prop.neighborhoodEn,
-                        subtitleAr = prop.neighborhoodAr,
-                        latitude = lm.latitude,
-                        longitude = lm.longitude
-                    )
-                }
-            }
-            val combined = (curatedIraqPois + fromListings)
-                .distinctBy { "${it.nameEn}_${it.category}" }
-                .filter { poiCat == "ALL" || it.category == poiCat }
-            if (searchedMarker != null) {
-                listOf(searchedMarker) + combined
+        combine(
+            _nearbyGooglePois,
+            _activePoiCategory,
+            _searchedPlaceMarker,
+            _currentMapZoom,
+            _cameraCenter
+        ) { googlePois, poiCat, searchedMarker, zoom, center ->
+            // When zoomed out, hide all restaurant/hospital/school/mosque/street icons
+            // so ONLY property (Sale / Rent / Commercial / Land) pins are displayed.
+            if (zoom < POI_ZOOM_THRESHOLD) {
+                emptyList()
             } else {
-                combined
+                val base = if (googlePois.isNotEmpty() || placesService.hasValidApiKey()) {
+                    googlePois
+                } else {
+                    curatedIraqPois.filter { poi ->
+                        haversineKm(center.first, center.second, poi.latitude, poi.longitude) <= 8.0
+                    }
+                }
+                val filtered = base
+                    .distinctBy { "${it.nameEn}_${it.category}" }
+                    .filter { poiCat == "ALL" || it.category == poiCat }
+                if (searchedMarker != null) {
+                    (listOf(searchedMarker) + filtered).distinctBy { it.id }
+                } else {
+                    filtered
+                }
             }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-            initialValue = curatedIraqPois
+            initialValue = emptyList()
         )
 
     val smartSearchSuggestions: StateFlow<List<SmartSearchSuggestion>> =
@@ -214,7 +250,7 @@ class DiyarViewModel(
     init {
         viewModelScope.launch {
             repository.ensureUserProfile("ar")
-            repository.seedInitialMarketplaceIfEmpty()
+            repository.cleanupDemoSeedProperties()
         }
 
         // 1. Real-time watch-rule alert matcher + device push notification trigger
@@ -377,6 +413,71 @@ class DiyarViewModel(
 
     fun setPoiCategory(category: String) {
         _activePoiCategory.value = category
+        if (_currentMapZoom.value >= POI_ZOOM_THRESHOLD) {
+            val (lat, lng) = _cameraCenter.value
+            fetchPoisAroundLocation(lat, lng, category, _currentMapZoom.value, _isArabicNotifications.value, force = true)
+        }
+    }
+
+    fun onMapCameraChanged(lat: Double, lng: Double, zoom: Float, isArabic: Boolean) {
+        _cameraCenter.value = lat to lng
+        _currentMapZoom.value = zoom
+        if (zoom >= POI_ZOOM_THRESHOLD) {
+            fetchPoisAroundLocation(lat, lng, _activePoiCategory.value, zoom, isArabic, force = false)
+        }
+    }
+
+    fun zoomInForPois() {
+        _requestedMapZoom.value = 14.2f
+        _currentMapZoom.value = 14.2f
+        val (lat, lng) = _cameraCenter.value
+        fetchPoisAroundLocation(lat, lng, _activePoiCategory.value, 14.2f, _isArabicNotifications.value, force = true)
+    }
+
+    fun consumeRequestedZoom() {
+        _requestedMapZoom.value = null
+    }
+
+    private fun fetchPoisAroundLocation(
+        lat: Double,
+        lng: Double,
+        category: String,
+        zoom: Float,
+        isArabic: Boolean,
+        force: Boolean
+    ) {
+        val prevLat = lastFetchedLat
+        val prevLng = lastFetchedLng
+        val movedKm = if (prevLat != null && prevLng != null) {
+            haversineKm(prevLat, prevLng, lat, lng)
+        } else {
+            Double.MAX_VALUE
+        }
+        if (!force && movedKm < 0.65 && lastFetchedCategory == category && _nearbyGooglePois.value.isNotEmpty()) {
+            return
+        }
+
+        lastFetchedLat = lat
+        lastFetchedLng = lng
+        lastFetchedCategory = category
+
+        val radiusMeters = when {
+            zoom >= 16.0f -> 1500
+            zoom >= 14.5f -> 2500
+            else -> 4000
+        }
+
+        poiFetchJob?.cancel()
+        poiFetchJob = viewModelScope.launch {
+            val fetched = placesService.fetchNearbyPois(
+                lat = lat,
+                lng = lng,
+                category = category,
+                radiusMeters = radiusMeters,
+                isArabic = isArabic
+            )
+            _nearbyGooglePois.value = fetched
+        }
     }
 
     fun clearSearchedPlace() {
@@ -385,7 +486,11 @@ class DiyarViewModel(
 
     fun focusOnPoi(poi: MapPointOfInterest) {
         _mapFocusTarget.value = poi.latitude to poi.longitude
+        _cameraCenter.value = poi.latitude to poi.longitude
+        _requestedMapZoom.value = 14.8f
+        _currentMapZoom.value = 14.8f
         _searchedPlaceMarker.value = poi
+        fetchPoisAroundLocation(poi.latitude, poi.longitude, _activePoiCategory.value, 14.8f, _isArabicNotifications.value, force = false)
     }
 
     fun searchLandmarkOrPlace(query: String, isArabic: Boolean) {
@@ -395,45 +500,44 @@ class DiyarViewModel(
             return
         }
 
-        // First check matching curated Iraq POIs & cities or property landmarks
-        val localHit = (mapPointsOfInterest.value + iraqCityPois).firstOrNull { poi ->
+        // First check matching curated Iraq POIs & cities
+        val localHit = (mapPointsOfInterest.value + curatedIraqPois + iraqCityPois).firstOrNull { poi ->
             poi.nameEn.contains(q, ignoreCase = true) ||
                 poi.nameAr.contains(q, ignoreCase = true) ||
                 poi.subtitleEn.contains(q, ignoreCase = true) ||
                 poi.subtitleAr.contains(q, ignoreCase = true)
         }
         if (localHit != null) {
-            _searchedPlaceMarker.value = localHit
-            _mapFocusTarget.value = localHit.latitude to localHit.longitude
-            // If exact text query filtered out all properties (e.g. searching a hospital/street), reset text filter so map shows surrounding listings cleanly
-            val curProps = (filteredPropertiesState.value as? UiState.Success)?.data
-            if (curProps != null && curProps.isEmpty() && _filter.value.query.isNotBlank()) {
-                _filter.value = _filter.value.copy(query = "")
-            }
+            applySearchedLocation(
+                id = localHit.id,
+                category = localHit.category,
+                nameEn = localHit.nameEn,
+                nameAr = localHit.nameAr,
+                subtitleEn = localHit.subtitleEn,
+                subtitleAr = localHit.subtitleAr,
+                lat = localHit.latitude,
+                lng = localHit.longitude,
+                districtFilterHint = null
+            )
             return
         }
 
-        // Next check Android/Google Geocoder scoped to Iraq for streets, hospitals, restaurants, districts
+        // Next check Android/Google Geocoder scoped to Iraq for any neighborhood, street, hospital, restaurant
         viewModelScope.launch {
             val geocoded = geocodeLandmark(q, isArabic)
             if (geocoded != null) {
                 val (lat, lng, label) = geocoded
-                val poi = MapPointOfInterest(
+                applySearchedLocation(
                     id = "geocoded_${q.hashCode()}",
                     category = inferPoiCategory(q),
                     nameEn = label,
                     nameAr = label,
                     subtitleEn = "Google Maps Search Result • Iraq",
                     subtitleAr = "نتيجة بحث خرائط Google • العراق",
-                    latitude = lat,
-                    longitude = lng
+                    lat = lat,
+                    lng = lng,
+                    districtFilterHint = null
                 )
-                _searchedPlaceMarker.value = poi
-                _mapFocusTarget.value = lat to lng
-                val curProps = (filteredPropertiesState.value as? UiState.Success)?.data
-                if (curProps != null && curProps.isEmpty() && _filter.value.query.isNotBlank()) {
-                    _filter.value = _filter.value.copy(query = "")
-                }
             }
         }
     }
@@ -545,6 +649,24 @@ class DiyarViewModel(
                 }
             }
 
+            SearchSuggestionSource.CATEGORY_FILTER -> {
+                val targetCode = suggestion.filterQueryText
+                _searchedPlaceMarker.value = null
+                _filter.value = when (targetCode) {
+                    "MORTGAGE", "SALE", "RENT" -> _filter.value.copy(
+                        query = "",
+                        listingType = targetCode,
+                        propertyType = "ALL"
+                    )
+                    "COMMERCIAL" -> _filter.value.copy(
+                        query = "",
+                        listingType = "ALL",
+                        propertyType = "COMMERCIAL"
+                    )
+                    else -> _filter.value.copy(query = "", listingType = "ALL", propertyType = "ALL")
+                }
+            }
+
             SearchSuggestionSource.GOOGLE_PLACES -> {
                 viewModelScope.launch {
                     _isSearchingSuggestions.value = true
@@ -599,6 +721,10 @@ class DiyarViewModel(
         )
         _searchedPlaceMarker.value = poi
         _mapFocusTarget.value = lat to lng
+        _cameraCenter.value = lat to lng
+        _requestedMapZoom.value = 14.2f
+        _currentMapZoom.value = 14.2f
+        fetchPoisAroundLocation(lat, lng, _activePoiCategory.value, 14.2f, _isArabicNotifications.value, force = true)
 
         val activeProps = (activePropertiesState.value as? UiState.Success)?.data.orEmpty()
         if (!districtFilterHint.isNullOrBlank()) {
@@ -619,6 +745,37 @@ class DiyarViewModel(
         }
     }
 
+    suspend fun resolveCityNeighborhoodCoords(
+        city: String,
+        neighborhood: String,
+        isArabic: Boolean
+    ): Pair<Double, Double> {
+        val normNeighborhood = normalizeSearchText(neighborhood)
+        val normCity = normalizeSearchText(city)
+
+        val matchedDistrict = iraqDistrictsAndCities.firstOrNull { item ->
+            (normNeighborhood.isNotBlank() && (
+                normalizeSearchText(item.primaryTextAr).contains(normNeighborhood) ||
+                    normalizeSearchText(item.primaryTextEn).contains(normNeighborhood)
+                )) || (normCity.isNotBlank() && (
+                normalizeSearchText(item.primaryTextAr).contains(normCity) ||
+                    normalizeSearchText(item.primaryTextEn).contains(normCity)
+                ))
+        }
+        if (matchedDistrict?.latitude != null && matchedDistrict.longitude != null) {
+            return matchedDistrict.latitude to matchedDistrict.longitude
+        }
+
+        val combinedQuery = listOf(neighborhood.trim(), city.trim(), "Iraq")
+            .filter { it.isNotBlank() }
+            .joinToString(", ")
+        val geocoded = geocodeLandmark(combinedQuery, isArabic)
+        if (geocoded != null) {
+            return geocoded.first to geocoded.second
+        }
+        return 33.3152 to 44.3661
+    }
+
     fun selectProperty(propertyId: String?) {
         _selectedPropertyId.value = propertyId
     }
@@ -635,6 +792,11 @@ class DiyarViewModel(
     fun toggleMapCategory(category: String) {
         val current = _filter.value
         _filter.value = when (category) {
+            "MORTGAGE" -> {
+                val isCurrentlyMortgage = current.listingType == "MORTGAGE" && current.propertyType != "COMMERCIAL"
+                if (isCurrentlyMortgage) current.copy(listingType = "ALL", propertyType = "ALL")
+                else current.copy(listingType = "MORTGAGE", propertyType = "ALL")
+            }
             "SALE" -> {
                 val isCurrentlySale = current.listingType == "SALE" && current.propertyType != "COMMERCIAL"
                 if (isCurrentlySale) current.copy(listingType = "ALL", propertyType = "ALL")
@@ -746,8 +908,17 @@ class DiyarViewModel(
 
     private fun applyFilter(list: List<PropertyListing>, f: PropertyFilter): List<PropertyListing> {
         val q = f.query.trim()
+        val normQ = normalizeSearchText(q)
         val filtered = list.filter { prop ->
+            val matchesCategoryKeyword = normQ.isNotEmpty() && when {
+                normQ.contains("رهن") || normQ.contains("mortgage") -> prop.listingType == "MORTGAGE"
+                normQ.contains("بيع") || normQ.contains("sale") -> prop.listingType == "SALE"
+                normQ.contains("ايجار") || normQ.contains("rent") -> prop.listingType == "RENT"
+                normQ.contains("تجاري") || normQ.contains("commercial") -> prop.propertyType == "COMMERCIAL"
+                else -> false
+            }
             val matchesQuery = q.isEmpty() ||
+                matchesCategoryKeyword ||
                 prop.titleEn.contains(q, ignoreCase = true) ||
                 prop.titleAr.contains(q, ignoreCase = true) ||
                 prop.cityEn.contains(q, ignoreCase = true) ||
@@ -817,6 +988,61 @@ class DiyarViewModel(
 
         val normQ = normalizeSearchText(query)
         val out = mutableListOf<SmartSearchSuggestion>()
+
+        // 0. Category quick-filter suggestions (Mortgage / Sale / Rent / Commercial)
+        val categoryKeywords = listOf(
+            Triple("cat_mortgage", "MORTGAGE", listOf("رهن", "رهنيه", "للرهن", "للرهنيه", "mortgage", "mort")),
+            Triple("cat_sale", "SALE", listOf("بيع", "للبيع", "sale")),
+            Triple("cat_rent", "RENT", listOf("ايجار", "للايجار", "اجار", "rent")),
+            Triple("cat_commercial", "COMMERCIAL", listOf("تجاري", "محل", "commercial"))
+        )
+        categoryKeywords.forEach { (id, code, keys) ->
+            if (keys.any { k -> k.startsWith(normQ) || normQ.contains(k) }) {
+                val item = when (code) {
+                    "MORTGAGE" -> SmartSearchSuggestion(
+                        id = id,
+                        primaryTextEn = "Properties for Mortgage",
+                        primaryTextAr = "عقارات للرهنية",
+                        secondaryTextEn = "Filter map & list by Mortgage listings",
+                        secondaryTextAr = "عرض وتصفية جميع عقارات الرهنية",
+                        category = "CATEGORY",
+                        source = SearchSuggestionSource.CATEGORY_FILTER,
+                        filterQueryText = "MORTGAGE"
+                    )
+                    "SALE" -> SmartSearchSuggestion(
+                        id = id,
+                        primaryTextEn = "Properties for Sale",
+                        primaryTextAr = "عقارات للبيع",
+                        secondaryTextEn = "Filter map & list by Sale listings",
+                        secondaryTextAr = "عرض وتصفية جميع عقارات البيع",
+                        category = "CATEGORY",
+                        source = SearchSuggestionSource.CATEGORY_FILTER,
+                        filterQueryText = "SALE"
+                    )
+                    "RENT" -> SmartSearchSuggestion(
+                        id = id,
+                        primaryTextEn = "Properties for Rent",
+                        primaryTextAr = "عقارات للإيجار",
+                        secondaryTextEn = "Filter map & list by Rent listings",
+                        secondaryTextAr = "عرض وتصفية جميع عقارات الإيجار",
+                        category = "CATEGORY",
+                        source = SearchSuggestionSource.CATEGORY_FILTER,
+                        filterQueryText = "RENT"
+                    )
+                    else -> SmartSearchSuggestion(
+                        id = id,
+                        primaryTextEn = "Commercial Properties",
+                        primaryTextAr = "عقارات تجارية",
+                        secondaryTextEn = "Filter map & list by Commercial properties",
+                        secondaryTextAr = "عرض وتصفية جميع العقارات التجارية",
+                        category = "CATEGORY",
+                        source = SearchSuggestionSource.CATEGORY_FILTER,
+                        filterQueryText = "COMMERCIAL"
+                    )
+                }
+                out.add(item)
+            }
+        }
 
         // 1. Live Google Maps Places & Geocoder suggestions (first for comprehensive map search)
         for (remote in remoteSuggestions) {
@@ -925,6 +1151,7 @@ class DiyarViewModel(
 
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5000L
+        const val POI_ZOOM_THRESHOLD = 13.5f
 
         val availableAmenityCodes = listOf(
             "POOL", "GARDEN", "ELEVATOR", "SMART_HOME", "PARKING", "MAID_ROOM", "GYM"

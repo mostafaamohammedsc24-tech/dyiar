@@ -24,10 +24,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Architecture
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Explore
@@ -35,21 +37,27 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Mosque
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +71,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,9 +90,12 @@ import com.example.ui.components.PropertyImageCarousel
 import com.example.ui.components.PropertyNeighborhoodMiniMap
 import com.example.ui.components.VirtualTour360Viewer
 import com.example.ui.components.formatCurrencyPrice
+import com.example.ui.components.openPropertyWhatsApp
 import com.example.ui.components.parseColorHex
 import com.example.ui.components.resolvePropertyGalleryItems
+import com.example.ui.components.sharePropertyExternally
 import com.example.ui.theme.DiyarActionBlue
+import com.example.ui.theme.MortgageCyan
 import com.example.ui.theme.RentViolet
 import com.example.ui.theme.RestaurantOrange
 import com.example.ui.theme.TealLandmark
@@ -104,6 +116,7 @@ fun PropertyDetailScreen(
     BackHandler { onBack() }
 
     val strings = LocalStrings.current
+    val context = LocalContext.current
     val activeState by viewModel.activePropertiesState.collectAsStateWithLifecycle()
     val myState by viewModel.myPropertiesState.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
@@ -115,11 +128,40 @@ fun PropertyDetailScreen(
     }
 
     if (property == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(strings.loadingText)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = onBack) { Text(strings.prevStep) }
+        val isStillLoading = activeState is UiState.Loading || myState is UiState.Loading
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (isStillLoading) {
+                    CircularProgressIndicator()
+                    Text(strings.loadingText)
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Text(
+                        text = if (strings.isArabic) "هذا العقار غير متاح أو تم حذفه" else "This property is unavailable or was removed.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("detail_missing_back_button")
+                ) {
+                    Text(strings.prevStep)
+                }
             }
         }
         return
@@ -132,6 +174,12 @@ fun PropertyDetailScreen(
         "${property.neighborhoodAr}، ${property.cityAr}"
     } else {
         "${property.neighborhoodEn}, ${property.cityEn}"
+    }
+    val categoryColor = when {
+        property.propertyType == "COMMERCIAL" -> RestaurantOrange
+        property.listingType == "MORTGAGE" -> MortgageCyan
+        property.listingType == "RENT" -> RentViolet
+        else -> MaterialTheme.colorScheme.primary
     }
 
     var selectedTourSceneIdx by remember { mutableIntStateOf(0) }
@@ -182,25 +230,43 @@ fun PropertyDetailScreen(
                     }
                 }
 
-                Surface(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    shape = CircleShape
-                ) {
-                    IconButton(
-                        onClick = { viewModel.toggleFavorite(property) },
-                        modifier = Modifier.testTag("detail_favorite_button")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        shape = CircleShape
                     ) {
-                        Icon(
-                            imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = strings.navFavorites,
-                            tint = if (isFav) Color(0xFFFF4D6D) else Color.White
-                        )
+                        IconButton(
+                            onClick = { sharePropertyExternally(context, property, strings) },
+                            modifier = Modifier.testTag("detail_share_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = strings.shareProperty,
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        shape = CircleShape
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.toggleFavorite(property) },
+                            modifier = Modifier.testTag("detail_favorite_button")
+                        ) {
+                            Icon(
+                                imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = strings.navFavorites,
+                                tint = if (isFav) Color(0xFFFF4D6D) else Color.White
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Price, Title & District Headline Block cleanly below Carousel
+        // Price, Title, Badges, WhatsApp Contact & External Share Headline Block
         Surface(
             color = MaterialTheme.colorScheme.surface,
             border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -211,8 +277,51 @@ fun PropertyDetailScreen(
                     .widthIn(max = 720.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = categoryColor
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (property.listingType == "MORTGAGE") {
+                                Icon(
+                                    imageVector = Icons.Default.AccountBalance,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                            Text(
+                                text = strings.localizeListingType(property.listingType),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = strings.localizePropertyType(property.propertyType),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
                 Text(
                     text = formatCurrencyPrice(
                         property.price,
@@ -235,6 +344,53 @@ fun PropertyDetailScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = { openPropertyWhatsApp(context, property, strings) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VerifiedEmerald,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(48.dp)
+                            .testTag("detail_whatsapp_button")
+                    ) {
+                        Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "${strings.contactWhatsapp} • 07740080310",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { sharePropertyExternally(context, property, strings) },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("detail_share_outline_button")
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = strings.shareProperty,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
 
@@ -384,27 +540,79 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 5. Engineering Floor Plan + Room-by-Room Paint Colors & Dimensions
+            // 5. Engineering Floor Plan + Multi-Floor View + Room-by-Room Paint Colors & Dimensions
             if (property.rooms.isNotEmpty()) {
                 val safeIdx = selectedRoomIdx.coerceIn(0, property.rooms.lastIndex)
                 val activeRoom = property.rooms[safeIdx]
+                val floors = remember(property.rooms) {
+                    property.rooms.map { it.floor.coerceAtLeast(1) }.distinct().sorted()
+                }
+                var selectedFloorFilter by remember(property.id) {
+                    mutableIntStateOf(floors.firstOrNull() ?: 1)
+                }
+                val visibleEntries = remember(property.rooms, selectedFloorFilter) {
+                    property.rooms.mapIndexed { idx, room -> idx to room }
+                        .filter { (_, room) ->
+                            selectedFloorFilter == 0 || room.floor.coerceAtLeast(1) == selectedFloorFilter
+                        }
+                }
+                val visibleCanvasRooms = remember(visibleEntries) { visibleEntries.map { it.second } }
+                val selectedCanvasIdx = visibleEntries.indexOfFirst { it.first == safeIdx }
 
                 ReportSectionCard(
                     title = strings.architecturalPlanTitle,
                     subtitle = strings.architecturalPlanSubtitle
                 ) {
+                    if (floors.size > 1) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        ) {
+                            FilterChip(
+                                selected = selectedFloorFilter == 0,
+                                onClick = { selectedFloorFilter = 0 },
+                                label = { Text(strings.all) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                            floors.forEach { fl ->
+                                val flLabel = if (fl == 1) strings.floorGround else "${strings.floorLabelPrefix} $fl"
+                                FilterChip(
+                                    selected = selectedFloorFilter == fl,
+                                    onClick = {
+                                        selectedFloorFilter = fl
+                                        val firstOnFloor = property.rooms.indexOfFirst { it.floor.coerceAtLeast(1) == fl }
+                                        if (firstOnFloor >= 0) selectedRoomIdx = firstOnFloor
+                                    },
+                                    label = { Text(flLabel) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+
                     ArchitecturalFloorPlanCanvas(
-                        rooms = property.rooms,
+                        rooms = visibleCanvasRooms,
                         totalWidthM = property.floorPlanWidthM,
                         totalLengthM = property.floorPlanLengthM,
-                        selectedRoomIndex = safeIdx,
-                        onSelectRoom = { selectedRoomIdx = it }
+                        selectedRoomIndex = selectedCanvasIdx,
+                        onSelectRoom = { localIdx ->
+                            visibleEntries.getOrNull(localIdx)?.let { (origIdx, _) ->
+                                selectedRoomIdx = origIdx
+                            }
+                        }
                     )
 
                     Spacer(Modifier.height(14.dp))
 
                     // Highlighted Selected Room Specification Panel
-                    RoomSpecificationPanel(room = activeRoom)
+                    RoomSpecificationPanel(room = activeRoom, showFloorBadge = floors.size > 1)
 
                     Spacer(Modifier.height(10.dp))
 
@@ -420,7 +628,14 @@ fun PropertyDetailScreen(
                         RoomListRow(
                             room = room,
                             selected = idx == safeIdx,
-                            onClick = { selectedRoomIdx = idx }
+                            showFloorBadge = floors.size > 1,
+                            onClick = {
+                                selectedRoomIdx = idx
+                                val fl = room.floor.coerceAtLeast(1)
+                                if (selectedFloorFilter != 0 && selectedFloorFilter != fl) {
+                                    selectedFloorFilter = fl
+                                }
+                            }
                         )
                         if (idx < property.rooms.lastIndex) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -613,9 +828,11 @@ private fun ReportSectionCard(
 }
 
 @Composable
-private fun RoomSpecificationPanel(room: RoomSpec) {
+private fun RoomSpecificationPanel(room: RoomSpec, showFloorBadge: Boolean = false) {
     val strings = LocalStrings.current
     val swatchColor = parseColorHex(room.paintHex)
+    val flNum = room.floor.coerceAtLeast(1)
+    val floorLabel = if (flNum == 1) strings.floorGround else "${strings.floorLabelPrefix} $flNum"
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -633,8 +850,9 @@ private fun RoomSpecificationPanel(room: RoomSpec) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val roomTitle = if (strings.isArabic) room.nameAr else room.nameEn
                 Text(
-                    text = if (strings.isArabic) room.nameAr else room.nameEn,
+                    text = if (showFloorBadge) "$roomTitle ($floorLabel)" else roomTitle,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -676,9 +894,12 @@ private fun RoomSpecificationPanel(room: RoomSpec) {
 private fun RoomListRow(
     room: RoomSpec,
     selected: Boolean,
+    showFloorBadge: Boolean = false,
     onClick: () -> Unit
 ) {
     val strings = LocalStrings.current
+    val flNum = room.floor.coerceAtLeast(1)
+    val floorLabel = if (flNum == 1) strings.floorGround else "${strings.floorLabelPrefix} $flNum"
     Surface(
         color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else Color.Transparent,
         onClick = onClick
@@ -700,13 +921,14 @@ private fun RoomListRow(
                 )
                 Spacer(Modifier.width(10.dp))
                 Column {
+                    val roomName = if (strings.isArabic) room.nameAr else room.nameEn
                     Text(
-                        text = if (strings.isArabic) room.nameAr else room.nameEn,
+                        text = if (showFloorBadge) "$roomName • $floorLabel" else roomName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (strings.isArabic) room.paintNameAr else room.paintNameEn,
+                        text = "${if (strings.isArabic) room.paintNameAr else room.paintNameEn} • ${if (strings.isArabic) room.flooringAr else room.flooringEn}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

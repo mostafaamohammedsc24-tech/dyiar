@@ -14,10 +14,23 @@ import com.example.ui.DiyarApp
 class MainActivity : ComponentActivity() {
     private var pendingPropertyId by mutableStateOf<String?>(null)
 
+    private fun extractPropertyId(intent: Intent?): String? {
+        val fromExtra = intent?.getStringExtra(DiyarNotificationHelper.EXTRA_PROPERTY_ID)
+        if (!fromExtra.isNullOrBlank()) return fromExtra
+        val uri = intent?.data ?: return null
+        return when {
+            uri.scheme == "diyar" && uri.host == "property" ->
+                uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
+            uri.host == "iraqdallal.iq" && uri.pathSegments.firstOrNull() == "property" ->
+                uri.pathSegments.getOrNull(1)?.takeIf { it.isNotBlank() }
+            else -> null
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        pendingPropertyId = intent?.getStringExtra(DiyarNotificationHelper.EXTRA_PROPERTY_ID)
+        pendingPropertyId = extractPropertyId(intent)
         setContent {
             DiyarApp(
                 deepLinkPropertyId = pendingPropertyId,
@@ -28,7 +41,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val propId = intent.getStringExtra(DiyarNotificationHelper.EXTRA_PROPERTY_ID)
+        val propId = extractPropertyId(intent)
         if (!propId.isNullOrBlank()) {
             pendingPropertyId = propId
         }

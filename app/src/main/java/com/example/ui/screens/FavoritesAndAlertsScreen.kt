@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -74,6 +76,7 @@ import com.example.i18n.LocalStrings
 import com.example.notifications.DiyarNotificationHelper
 import com.example.ui.components.PropertyReportCard
 import com.example.ui.components.formatCurrencyPrice
+import com.example.ui.components.parseLocalizedDouble
 import com.example.ui.viewmodel.DiyarViewModel
 
 @Composable
@@ -160,7 +163,7 @@ fun FavoritesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AlertsScreen(
     viewModel: DiyarViewModel,
@@ -444,8 +447,16 @@ fun AlertsScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("alert_rule_name_input")
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ALL" to strings.all, "SALE" to strings.forSale, "RENT" to strings.forRent).forEach { (code, lbl) ->
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "ALL" to strings.all,
+                        "MORTGAGE" to strings.forMortgage,
+                        "SALE" to strings.forSale,
+                        "RENT" to strings.forRent
+                    ).forEach { (code, lbl) ->
                         FilterChip(
                             selected = listingType == code,
                             onClick = { listingType = code },
@@ -458,8 +469,19 @@ fun AlertsScreen(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ALL" to strings.all, "VILLA" to strings.villa, "APARTMENT" to strings.apartment).forEach { (code, lbl) ->
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "ALL" to strings.all,
+                        "VILLA" to strings.villa,
+                        "APARTMENT" to strings.apartment,
+                        "PENTHOUSE" to strings.penthouse,
+                        "TOWNHOUSE" to strings.townhouse,
+                        "COMMERCIAL" to strings.commercial,
+                        "LAND" to strings.land
+                    ).forEach { (code, lbl) ->
                         FilterChip(
                             selected = propertyType == code,
                             onClick = { propertyType = code },
@@ -498,7 +520,7 @@ fun AlertsScreen(
                                 nameAr = name,
                                 listingType = listingType,
                                 propertyType = propertyType,
-                                maxPrice = maxPriceInput.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 650_000_000.0,
+                                maxPrice = parseLocalizedDouble(maxPriceInput)?.coerceAtLeast(0.0) ?: 650_000_000.0,
                                 minAreaSqm = 0.0,
                                 cityFilter = cityInput.trim()
                             )

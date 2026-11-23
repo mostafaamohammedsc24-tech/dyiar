@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
@@ -280,7 +281,15 @@ private fun AuthenticatedDiyarShell(
                                             contentDescription = dest.label
                                         )
                                     },
-                                    label = { Text(dest.label, maxLines = 1) },
+                                    label = {
+                                        Text(
+                                            text = dest.label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.primary,
                                         selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -370,7 +379,10 @@ private fun AuthenticatedDiyarShell(
                                 onSetThemeMode = onSetThemeMode,
                                 onToggleLanguage = onToggleLanguage,
                                 onOpenAlerts = { navController.navigate(DiyarRoutes.ALERTS) },
-                                onOpenMyListings = { navigateTopLevel(DiyarRoutes.PUBLISH) },
+                                onOpenMyListings = {
+                                    viewModel.requestOpenMyListingsTab()
+                                    navigateTopLevel(DiyarRoutes.PUBLISH)
+                                },
                                 onSignOut = {
                                     signOutUser(credentialManager, scope)
                                 }

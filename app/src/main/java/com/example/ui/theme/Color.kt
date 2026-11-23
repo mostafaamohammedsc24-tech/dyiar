@@ -31,6 +31,7 @@ val CoralAlert = Color(0xFFEF4444)
 val TealLandmark = Color(0xFF14B8A6)
 val RentViolet = Color(0xFF8B5CF6)
 val RestaurantOrange = Color(0xFFF59E0B)
+val MortgageCyan = Color(0xFF0EA5E9)
 
 // Backwards-compatible aliases mapped to Orange brand palette
 val DiyarRoyalBlue = DiyarActionBlue

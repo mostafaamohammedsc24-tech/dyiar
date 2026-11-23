@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -23,18 +27,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DesignServices
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,22 +62,55 @@ import com.example.data.model.ServiceRequest
 import com.example.data.model.UiState
 import com.example.data.repository.DiyarRepository
 import com.example.i18n.LocalStrings
-import com.example.ui.components.formatCurrencyPrice
 import com.example.ui.theme.AmberGold
 import com.example.ui.viewmodel.DiyarViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServicesScreen(viewModel: DiyarViewModel) {
     val strings = LocalStrings.current
+    val context = LocalContext.current
     val requestsState by viewModel.serviceRequestsState.collectAsStateWithLifecycle()
     var selectedCategory by remember { mutableStateOf("ALL") }
-    var bookingPackage by remember { mutableStateOf<ServicePackage?>(null) }
 
     val packages = remember(selectedCategory) {
         DiyarRepository.defaultServicePackages.filter {
             selectedCategory == "ALL" || it.category == selectedCategory
         }
+    }
+
+    fun openWhatsAppForService(pkg: ServicePackage) {
+        val serviceName = if (strings.isArabic) pkg.titleAr else pkg.titleEn
+        val message = if (strings.isArabic) {
+            "مرحباً شبكة دلال العراق، أرغب بطلب خدمة: $serviceName\n(السعر حسب الاتفاق)"
+        } else {
+            "Hello Iraq Dallal Network, I would like to request service: $serviceName\n(Price by agreement)"
+        }
+        val waUrl = "https://wa.me/${DiyarRepository.WHATSAPP_SERVICE_NUMBER}?text=${Uri.encode(message)}"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(
+                context,
+                if (strings.isArabic) "يرجى التواصل عبر واتساب على الرقم 07740080310"
+                else "Please contact via WhatsApp on 07740080310",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        // Also log the request in Firestore without blocking WhatsApp launch
+        viewModel.bookService(
+            ServiceRequest(
+                serviceCategory = pkg.category,
+                packageTitleEn = pkg.titleEn,
+                packageTitleAr = pkg.titleAr,
+                propertyTitle = if (strings.isArabic) "طلب عبر واتساب" else "WhatsApp Request",
+                address = if (strings.isArabic) "بغداد، العراق" else "Baghdad, Iraq",
+                scheduledDate = "By Agreement",
+                notes = "WhatsApp 07740080310",
+                estimatedPrice = 0.0
+            )
+        ) {}
     }
 
     LazyColumn(
@@ -145,8 +181,8 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                     "ALL" to strings.all,
                     "STAGING" to strings.stagingCat,
                     "MAINTENANCE" to strings.maintenanceCat,
-                    "REPAIR" to strings.repairCat,
-                    "MOVING" to strings.movingCat
+                    "MOVING" to strings.movingCat,
+                    "MARKETING" to strings.marketingCat
                 ).forEach { (cat, label) ->
                     FilterChip(
                         selected = selectedCategory == cat,
@@ -160,8 +196,8 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
         items(packages, key = { it.id }) { pkg ->
             val icon = when (pkg.category) {
                 "STAGING" -> Icons.Default.DesignServices
-                "MAINTENANCE" -> Icons.Default.CleaningServices
-                "REPAIR" -> Icons.Default.Build
+                "MAINTENANCE" -> Icons.Default.Build
+                "MARKETING" -> Icons.Default.CameraAlt
                 else -> Icons.Default.LocalShipping
             }
             Surface(
@@ -174,11 +210,11 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                             modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                         Spacer(Modifier.width(12.dp))
@@ -213,16 +249,22 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = formatCurrencyPrice(pkg.priceSar, "IQD", false, strings.isArabic),
+                            text = strings.priceByAgreement,
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                         Button(
-                            onClick = { bookingPackage = pkg },
+                            onClick = { openWhatsAppForService(pkg) },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("book_service_${pkg.id}")
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
                             Text(strings.bookService)
                         }
                     }
@@ -258,7 +300,7 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${req.address} • ${req.scheduledDate} • ${strings.localizeServiceStatus(req.status)}",
+                                text = "${req.address} • ${strings.priceByAgreement} • ${strings.localizeServiceStatus(req.status)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -270,79 +312,6 @@ fun ServicesScreen(viewModel: DiyarViewModel) {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    val selectedPkg = bookingPackage
-    if (selectedPkg != null) {
-        var propertyTitle by remember { mutableStateOf(if (strings.isArabic) "فيلا المنصور" else "Al-Mansour Villa") }
-        var address by remember { mutableStateOf("") }
-        var scheduledDate by remember { mutableStateOf("2026-11-26") }
-        var notes by remember { mutableStateOf("") }
-
-        ModalBottomSheet(onDismissRequest = { bookingPackage = null }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = if (strings.isArabic) selectedPkg.titleAr else selectedPkg.titleEn,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                OutlinedTextField(
-                    value = propertyTitle,
-                    onValueChange = { propertyTitle = it },
-                    label = { Text(if (strings.isArabic) "اسم العقار" else "Property Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    label = { Text(strings.addressLabel) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = scheduledDate,
-                    onValueChange = { scheduledDate = it },
-                    label = { Text(strings.scheduleDateLabel) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text(strings.notesLabel) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = {
-                        viewModel.bookService(
-                            ServiceRequest(
-                                serviceCategory = selectedPkg.category,
-                                packageTitleEn = selectedPkg.titleEn,
-                                packageTitleAr = selectedPkg.titleAr,
-                                propertyTitle = propertyTitle.ifBlank { "Residence" },
-                                address = address.ifBlank { if (strings.isArabic) "بغداد، العراق" else "Baghdad, Iraq" },
-                                scheduledDate = scheduledDate.ifBlank { "2026-11-26" },
-                                notes = notes.ifBlank { null },
-                                estimatedPrice = selectedPkg.priceSar
-                            )
-                        ) {
-                            bookingPackage = null
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp).testTag("confirm_service_booking")
-                ) {
-                    Text(strings.confirmBooking)
-                }
-                Spacer(Modifier.height(16.dp))
             }
         }
     }

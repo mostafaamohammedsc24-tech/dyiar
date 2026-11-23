@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,23 +18,30 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Architecture
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,15 +51,32 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.PropertyListing
+import com.example.i18n.DiyarStrings
 import com.example.i18n.LocalStrings
 import com.example.ui.theme.DiyarActionBlue
+import com.example.ui.theme.MortgageCyan
 import com.example.ui.theme.RentViolet
 import com.example.ui.theme.VerifiedEmerald
+
+private fun listingBadgeMeta(listingType: String, strings: DiyarStrings): Triple<String, Color, ImageVector> {
+    return when (listingType) {
+        "MORTGAGE" -> Triple(strings.forMortgage, MortgageCyan, Icons.Default.AccountBalance)
+        "RENT" -> Triple(strings.forRent, RentViolet, Icons.Default.Key)
+        else -> Triple(strings.forSale, DiyarActionBlue, Icons.Default.Home)
+    }
+}
+
+private fun resolvePrimaryPhotoUri(property: PropertyListing): String {
+    return property.galleryImages.firstOrNull { !it.startsWith("preset:") && it.isNotBlank() }
+        ?: property.tourScenes.firstOrNull { it.customPhotoUri.isNotBlank() }?.customPhotoUri
+        ?: ""
+}
 
 @Composable
 fun PropertyReportCard(
@@ -62,9 +88,11 @@ fun PropertyReportCard(
     modifier: Modifier = Modifier
 ) {
     val strings = LocalStrings.current
+    val context = LocalContext.current
     val title = if (strings.isArabic) property.titleAr else property.titleEn
     val location = if (strings.isArabic) "${property.neighborhoodAr}، ${property.cityAr}"
     else "${property.neighborhoodEn}, ${property.cityEn}"
+    val (badgeLabel, badgeColor, badgeIcon) = listingBadgeMeta(property.listingType, strings)
 
     Card(
         shape = RoundedCornerShape(22.dp),
@@ -87,7 +115,7 @@ fun PropertyReportCard(
             ) {
                 PropertyHeroImage(
                     presetKey = property.heroPresetKey,
-                    customUri = property.tourScenes.firstOrNull { it.customPhotoUri.isNotBlank() }?.customPhotoUri ?: "",
+                    customUri = resolvePrimaryPhotoUri(property),
                     contentDescription = title,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -105,7 +133,7 @@ fun PropertyReportCard(
                         )
                 )
 
-                // Top status badges & Favorite toggle
+                // Top status badges & Share/Favorite toggles
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -116,10 +144,10 @@ fun PropertyReportCard(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         StatusChip(
-                            text = if (property.listingType == "RENT") strings.forRent else strings.forSale,
-                            bg = if (property.listingType == "RENT") RentViolet else DiyarActionBlue,
+                            text = badgeLabel,
+                            bg = badgeColor,
                             fg = Color.White,
-                            icon = if (property.listingType == "RENT") Icons.Default.Key else Icons.Default.Home
+                            icon = badgeIcon
                         )
                         if (property.verified) {
                             StatusChip(
@@ -131,21 +159,41 @@ fun PropertyReportCard(
                         }
                     }
 
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.48f),
-                        shape = CircleShape,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.testTag("favorite_toggle_${property.id}")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.48f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = strings.navFavorites,
-                                tint = if (isFavorite) Color(0xFFFF4D6D) else Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            IconButton(
+                                onClick = { sharePropertyExternally(context, property, strings) },
+                                modifier = Modifier.testTag("share_property_${property.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = strings.shareProperty,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.48f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            IconButton(
+                                onClick = onToggleFavorite,
+                                modifier = Modifier.testTag("favorite_toggle_${property.id}")
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = strings.navFavorites,
+                                    tint = if (isFavorite) Color(0xFFFF4D6D) else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -236,6 +284,53 @@ fun PropertyReportCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { openPropertyWhatsApp(context, property, strings) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp)
+                            .testTag("card_contact_whatsapp_${property.id}")
+                    ) {
+                        Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = strings.contactWhatsapp,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { sharePropertyExternally(context, property, strings) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .testTag("card_share_${property.id}")
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = strings.shareProperty,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
     }
@@ -311,3 +406,227 @@ private fun SpecBadge(icon: ImageVector, text: String) {
         )
     }
 }
+
+/**
+ * Compact horizontal map preview card with built-in Close (dismiss), WhatsApp Contact (07740080310),
+ * and external Share actions so users can reach or share any pinned property directly from the map.
+ */
+@Composable
+fun MapPropertyPreviewCard(
+    property: PropertyListing,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onDismiss: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalStrings.current
+    val context = LocalContext.current
+    val title = if (strings.isArabic) property.titleAr else property.titleEn
+    val location = if (strings.isArabic) "${property.neighborhoodAr}، ${property.cityAr}"
+    else "${property.neighborhoodEn}, ${property.cityEn}"
+    val (badgeLabel, badgeColor, _) = listingBadgeMeta(property.listingType, strings)
+
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(134.dp)
+            .clickable(onClick = onClick)
+            .testTag("property_card_${property.id}")
+    ) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .width(106.dp)
+                    .fillMaxHeight()
+            ) {
+                PropertyHeroImage(
+                    presetKey = property.heroPresetKey,
+                    customUri = resolvePrimaryPhotoUri(property),
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Black.copy(alpha = 0.25f), Color.Black.copy(alpha = 0.55f))
+                            )
+                        )
+                )
+                StatusChip(
+                    text = badgeLabel,
+                    bg = badgeColor,
+                    fg = Color.White,
+                    icon = null
+                )
+                if (property.hasVirtualTour) {
+                    Surface(
+                        color = Color(0xCC0B0E14),
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(3.dp))
+                            Text("360°", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatCurrencyPrice(
+                            property.price,
+                            property.currency,
+                            property.listingType == "RENT",
+                            strings.isArabic
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            modifier = Modifier.size(28.dp).testTag("favorite_toggle_${property.id}")
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = strings.navFavorites,
+                                tint = if (isFavorite) Color(0xFFFF4D6D) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(28.dp).testTag("dismiss_map_card_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = strings.deleteListing,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = location,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Text(
+                        text = "${property.bedrooms}${strings.bedsLabel} • ${property.areaSqm.toInt()}${strings.areaUnit}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { openPropertyWhatsApp(context, property, strings) }
+                            .testTag("map_card_whatsapp_${property.id}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(strings.contactWhatsapp, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .clickable { sharePropertyExternally(context, property, strings) }
+                            .testTag("map_card_share_${property.id}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = strings.shareProperty, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(strings.shareProperty, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

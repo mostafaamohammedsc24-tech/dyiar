@@ -34,7 +34,7 @@ service cloud.firestore {
              data.titleAr is string && data.titleAr.size() >= 3 && data.titleAr.size() <= 140 &&
              data.descriptionEn is string && data.descriptionEn.size() >= 10 && data.descriptionEn.size() <= 2500 &&
              data.descriptionAr is string && data.descriptionAr.size() >= 10 && data.descriptionAr.size() <= 2500 &&
-             data.listingType in ['SALE', 'RENT'] &&
+             data.listingType in ['SALE', 'RENT', 'MORTGAGE'] &&
              data.propertyType in ['VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
              data.status in ['ACTIVE', 'DRAFT', 'SOLD'] &&
              data.verificationStatus in ['VERIFIED', 'PENDING'] &&
@@ -96,7 +96,7 @@ service cloud.firestore {
              (!('status' in data) || data.status in ['ACTIVE', 'DRAFT', 'SOLD']) &&
              data.cityEn is string && data.cityEn.size() >= 1 && data.cityEn.size() <= 80 &&
              data.cityAr is string && data.cityAr.size() >= 1 && data.cityAr.size() <= 80 &&
-             data.listingType in ['SALE', 'RENT'] &&
+             data.listingType in ['SALE', 'RENT', 'MORTGAGE'] &&
              data.propertyType in ['VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
              data.heroPresetKey is string && data.heroPresetKey.size() >= 1 && data.heroPresetKey.size() <= 64 &&
              data.createdAt is timestamp && data.createdAt <= request.time;
@@ -105,7 +105,7 @@ service cloud.firestore {
     function isValidAlertRule(data) {
       return data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100 &&
              data.nameAr is string && data.nameAr.size() >= 1 && data.nameAr.size() <= 100 &&
-             data.listingType in ['ALL', 'SALE', 'RENT'] &&
+             data.listingType in ['ALL', 'SALE', 'RENT', 'MORTGAGE'] &&
              data.propertyType in ['ALL', 'VILLA', 'APARTMENT', 'PENTHOUSE', 'TOWNHOUSE', 'COMMERCIAL', 'LAND'] &&
              data.maxPrice is number && data.maxPrice >= 0 && data.maxPrice <= 20000000000 &&
              data.minAreaSqm is number && data.minAreaSqm >= 0 && data.minAreaSqm <= 1000000 &&
@@ -128,14 +128,14 @@ service cloud.firestore {
     }
 
     function isValidServiceRequest(data) {
-      return data.serviceCategory in ['STAGING', 'MAINTENANCE', 'REPAIR', 'MOVING'] &&
+      return data.serviceCategory in ['STAGING', 'MAINTENANCE', 'REPAIR', 'MOVING', 'MARKETING'] &&
              data.packageTitleEn is string && data.packageTitleEn.size() >= 1 && data.packageTitleEn.size() <= 120 &&
              data.packageTitleAr is string && data.packageTitleAr.size() >= 1 && data.packageTitleAr.size() <= 120 &&
              data.propertyTitle is string && data.propertyTitle.size() >= 1 && data.propertyTitle.size() <= 140 &&
              data.address is string && data.address.size() >= 3 && data.address.size() <= 200 &&
              data.scheduledDate is string && data.scheduledDate.size() >= 1 && data.scheduledDate.size() <= 40 &&
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
-             data.estimatedPrice is number && data.estimatedPrice > 0 && data.estimatedPrice <= 500000000 &&
+             data.estimatedPrice is number && data.estimatedPrice >= 0 && data.estimatedPrice <= 500000000 &&
              data.status in ['REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
              data.updatedAt is timestamp && data.updatedAt <= request.time;

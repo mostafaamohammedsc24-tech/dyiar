@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Storefront
@@ -40,9 +41,11 @@ import androidx.compose.ui.unit.dp
 import com.example.i18n.LocalStrings
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.DiyarActionBlue
+import com.example.ui.theme.MortgageCyan
 import com.example.ui.theme.RentViolet
 
 enum class MapRailCategory {
+    MORTGAGE,
     SALE,
     RENT,
     COMMERCIAL
@@ -51,6 +54,7 @@ enum class MapRailCategory {
 @Composable
 fun VerticalMapCategorySelector(
     activeCategory: MapRailCategory?,
+    mortgageCount: Int,
     saleCount: Int,
     rentCount: Int,
     commercialCount: Int,
@@ -60,20 +64,35 @@ fun VerticalMapCategorySelector(
     val strings = LocalStrings.current
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
         tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
+        shadowElevation = 6.dp,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = modifier
-            .widthIn(min = 66.dp, max = 78.dp)
+            .widthIn(min = 52.dp, max = 60.dp)
             .testTag("vertical_map_category_selector")
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
+            VerticalCategoryItem(
+                label = strings.mortgageShort,
+                icon = Icons.Default.AccountBalance,
+                count = mortgageCount,
+                selected = activeCategory == MapRailCategory.MORTGAGE,
+                accentColor = MortgageCyan,
+                testTag = "map_cat_mortgage",
+                onClick = { onSelectCategory(MapRailCategory.MORTGAGE) }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 6.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
             VerticalCategoryItem(
                 label = strings.saleShort,
                 icon = Icons.Default.Home,
@@ -85,7 +104,7 @@ fun VerticalMapCategorySelector(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier.padding(horizontal = 6.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
@@ -100,7 +119,7 @@ fun VerticalMapCategorySelector(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier.padding(horizontal = 6.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
@@ -146,10 +165,10 @@ private fun VerticalCategoryItem(
     Column(
         modifier = Modifier
             .minimumInteractiveComponentSize()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(13.dp))
             .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 5.dp, vertical = 5.dp)
             .testTag(testTag),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -157,7 +176,7 @@ private fun VerticalCategoryItem(
         Box(contentAlignment = Alignment.TopEnd) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .background(
                         if (selected) Color.White.copy(alpha = 0.18f)
@@ -169,7 +188,7 @@ private fun VerticalCategoryItem(
                     imageVector = icon,
                     contentDescription = label,
                     tint = iconColor,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
             if (count > 0) {
@@ -177,7 +196,7 @@ private fun VerticalCategoryItem(
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(if (selected) Color.White else accentColor)
-                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                        .padding(horizontal = 3.dp, vertical = 0.5.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -189,7 +208,7 @@ private fun VerticalCategoryItem(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
